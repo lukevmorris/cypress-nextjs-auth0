@@ -1,4 +1,4 @@
-const jose = require('jose');
+import { decodeJwt } from '../utils/decode-jwt';
 
 let sessionStore = {};
 
@@ -23,12 +23,11 @@ Cypress.Commands.add('login', (credentials = {}) => {
         /* https://github.com/auth0/nextjs-auth0/blob/master/src/handlers/callback.ts#L47 */
         /* https://github.com/auth0/nextjs-auth0/blob/master/src/session/cookie-store/index.ts#L57 */
 
-        const { aud, exp, iat, iss, ...claims } = jose.decodeJwt(idToken);
-        console.debug('From login', jose);
+        const user = decodeJwt(idToken);
 
         const payload = {
           secret: Cypress.env('auth0CookieSecret'),
-          user: claims,
+          user,
           idToken,
           accessToken,
           accessTokenScope: scope,
