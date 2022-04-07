@@ -1,3 +1,5 @@
+const jose = require('jose');
+
 let sessionStore = {};
 
 Cypress.Commands.add('login', (credentials = {}) => {
@@ -17,27 +19,28 @@ Cypress.Commands.add('login', (credentials = {}) => {
       cy.getUserTokens(_credentials).then(response => {
         const { accessToken, expiresIn, idToken, scope } = response;
 
-        cy.getUserInfo(accessToken).then(user => {
-          /* https://github.com/auth0/nextjs-auth0/blob/master/src/handlers/callback.ts#L44 */
-          /* https://github.com/auth0/nextjs-auth0/blob/master/src/handlers/callback.ts#L47 */
-          /* https://github.com/auth0/nextjs-auth0/blob/master/src/session/cookie-store/index.ts#L57 */
+        /* https://github.com/auth0/nextjs-auth0/blob/master/src/handlers/callback.ts#L44 */
+        /* https://github.com/auth0/nextjs-auth0/blob/master/src/handlers/callback.ts#L47 */
+        /* https://github.com/auth0/nextjs-auth0/blob/master/src/session/cookie-store/index.ts#L57 */
 
-          const payload = {
-            secret: Cypress.env('auth0CookieSecret'),
-            user,
-            idToken,
-            accessToken,
-            accessTokenScope: scope,
-            accessTokenExpiresAt: Date.now() + expiresIn,
-            createdAt: Date.now(),
-          };
+        const { aud, exp, iat, iss, ...claims } = jose.decodeJwt(idToken);
+        console.debug('From login', jose);
 
-          /* https://github.com/auth0/nextjs-auth0/blob/master/src/session/cookie-store/index.ts#L73 */
+        const payload = {
+          secret: Cypress.env('auth0CookieSecret'),
+          user: claims,
+          idToken,
+          accessToken,
+          accessTokenScope: scope,
+          accessTokenExpiresAt: Date.now() + expiresIn,
+          createdAt: Date.now(),
+        };
 
-          cy.task('encrypt', payload).then(encryptedSession => {
-            sessionStore[username] = encryptedSession;
-            cy._setAuth0Cookie(encryptedSession);
-          });
+        /* https://github.com/auth0/nextjs-auth0/blob/master/src/session/cookie-store/index.ts#L73 */
+
+        cy.task('encrypt', payload).then(encryptedSession => {
+          sessionStore[username] = encryptedSession;
+          cy._setAuth0Cookie(encryptedSession);
         });
       });
     }
